@@ -12,7 +12,7 @@ A native Omarchy Quattro bar widget for ThinkPad keyboard backlights, designed p
 
 ### Automatic mode
 
-The schedule can be enabled directly in the plugin panel. The configured transition times remain visible underneath the switch.
+The schedule can be enabled directly in the plugin panel. Both transition times can be adjusted there with the `−` and `+` controls.
 
 ![Automatic schedule enabled](assets/automatic-enabled.png)
 
@@ -77,7 +77,7 @@ The active mode is highlighted in the panel and reflected by the bulb icon in th
 
 ## Automatic schedule
 
-Scheduling is disabled by default and must be enabled explicitly in the panel or widget settings. Defaults:
+Scheduling is disabled by default and must be enabled explicitly in the panel or widget settings. The panel contains separate hour controls for both transitions. Defaults:
 
 - Night begins at `20:00`: set the backlight to Low.
 - Day begins at `07:00`: turn the backlight Off.

@@ -70,6 +70,15 @@ BarWidget {
     if (value) Qt.callLater(function() { root.applySchedule(true) })
   }
 
+  function setScheduleHour(key, value) {
+    var normalized = ((Number(value) % 24) + 24) % 24
+    var update = {}
+    update[key] = normalized
+    persistSettings(update)
+    lastSchedulePeriod = ""
+    if (scheduleEnabled) Qt.callLater(function() { root.applySchedule(true) })
+  }
+
   function open() { if (panelLoader.item) panelLoader.item.open() }
   function close() { if (panelLoader.item) panelLoader.item.close() }
   function toggle() { if (panelLoader.item) panelLoader.item.toggle() }

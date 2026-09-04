@@ -23,6 +23,12 @@ Panel {
     selectedIndex = index
     if (hostWidget) hostWidget.setMode(modes[index].mode)
   }
+  function changeNightHour(delta) {
+    if (hostWidget) hostWidget.setScheduleHour("nightStartHour", hostWidget.nightStartHour + delta)
+  }
+  function changeDayHour(delta) {
+    if (hostWidget) hostWidget.setScheduleHour("dayStartHour", hostWidget.dayStartHour + delta)
+  }
   function switchPanel(direction) {
     if (bar && typeof bar.switchPanelFrom === "function") return bar.switchPanelFrom(hostWidget || root, direction)
     return false
@@ -135,17 +141,80 @@ Panel {
           onClicked: if (hostWidget) hostWidget.setScheduleEnabled(!hostWidget.scheduleEnabled)
         }
 
-        Text {
+        Column {
           width: parent.width
-          text: hostWidget
-            ? "Low at " + String(hostWidget.nightStartHour).padStart(2, "0") + ":00 · Off at " + String(hostWidget.dayStartHour).padStart(2, "0") + ":00"
-            : ""
-          color: Qt.darker(root.bar.foreground, 1.4)
-          font.family: root.bar.fontFamily
-          font.pixelSize: Style.font.caption
-          horizontalAlignment: Text.AlignHCenter
+          spacing: Style.space(6)
+
+          ScheduleTimeRow {
+            label: "Low light starts"
+            hour: hostWidget ? hostWidget.nightStartHour : 20
+            onDecreaseRequested: root.changeNightHour(-1)
+            onIncreaseRequested: root.changeNightHour(1)
+          }
+
+          ScheduleTimeRow {
+            label: "Light turns off"
+            hour: hostWidget ? hostWidget.dayStartHour : 7
+            onDecreaseRequested: root.changeDayHour(-1)
+            onIncreaseRequested: root.changeDayHour(1)
+          }
         }
       }
+    }
+  }
+
+  component ScheduleTimeRow: Row {
+    id: scheduleRow
+    property string label: ""
+    property int hour: 0
+    signal decreaseRequested()
+    signal increaseRequested()
+
+    width: parent.width
+    spacing: Style.space(6)
+
+    Text {
+      width: Math.max(0, parent.width - decreaseButton.width - timeLabel.width - increaseButton.width - parent.spacing * 3)
+      anchors.verticalCenter: parent.verticalCenter
+      text: scheduleRow.label
+      color: root.bar.foreground
+      font.family: root.bar.fontFamily
+      font.pixelSize: Style.font.bodySmall
+      elide: Text.ElideRight
+    }
+
+    Button {
+      id: decreaseButton
+      width: Style.space(42)
+      text: "−"
+      fontSize: Style.font.title
+      foreground: root.bar.foreground
+      fontFamily: root.bar.fontFamily
+      bordered: true
+      onClicked: scheduleRow.decreaseRequested()
+    }
+
+    Text {
+      id: timeLabel
+      width: Style.space(58)
+      anchors.verticalCenter: parent.verticalCenter
+      text: String(scheduleRow.hour).padStart(2, "0") + ":00"
+      color: root.bar.foreground
+      font.family: root.bar.fontFamily
+      font.pixelSize: Style.font.body
+      font.bold: true
+      horizontalAlignment: Text.AlignHCenter
+    }
+
+    Button {
+      id: increaseButton
+      width: Style.space(42)
+      text: "+"
+      fontSize: Style.font.title
+      foreground: root.bar.foreground
+      fontFamily: root.bar.fontFamily
+      bordered: true
+      onClicked: scheduleRow.increaseRequested()
     }
   }
 }
