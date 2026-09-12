@@ -42,7 +42,8 @@ Either manual action pauses both automatic systems; **Resume automatic control**
 resumes them. The pause survives shell reloads and login. The hardware Fn shortcut
 is outside this widget: an automatic sample can overwrite an Fn-selected level.
 
-**Ambient mode** uses the visible-light webcam every 2 minutes. A dark scene
+**Ambient mode** checks after startup and immediately after unlocking (detected
+within about one second), then every **10 minutes** by default. A dark scene
 selects Bright, an intermediate scene Medium, and a bright scene Off. The panel
 shows the latest intensity and smoothed intensity. Camera activity lasts roughly
 one second per successful sample, rather than keeping the camera open.
@@ -53,6 +54,29 @@ the schedule is disabled, the last keyboard level remains. Sensing retries at
 the next interval. Disabling ambient mode resumes the enabled schedule. Enabling
 either automatic control clears the manual pause. Existing schedule hours are
 preserved; the schedule sets Medium during its night period and Off during day.
+
+## Check interval and locking
+
+Use **Check interval** in the panel (−/+ in whole minutes), or set **Ambient check
+interval (minutes)** in the widget options. The default is 10 minutes; the supported
+range is 1–1440 minutes. The setting persists across updates and restarts.
+For an exact value through the local IPC:
+
+```sh
+omarchy-shell io.github.alexanderpuschkinberlin.keyboard-backlight.ambient interval 10
+```
+
+A read-only `omarchy-shell lock isLocked` query runs once per second while Ambient
+mode is enabled. This query does not activate the camera. A locked-to-unlocked
+transition takes a fresh camera sample and restarts the full interval. While
+locked, no new samples start; an already-running bounded sample may finish, but
+its result is ignored. If lock status is unavailable, camera sampling pauses until
+it can be read again. Manual pause still takes priority, including after unlock.
+
+The desktop startup check waits for the widget to initialize and confirm that the
+session is unlocked. Changing the interval resets the countdown; shell settings
+reloads can also cause the normal startup sample. Enabling Ambient mode, resuming
+manual pause, or adjusting calibration can request a sample between timed checks.
 
 ## Calibration
 
@@ -78,7 +102,9 @@ still influence readings. A covered lens looks dark and may select Bright.
 The smoothed value is 65% previous + 35% current. Switching uses an eight-unit
 hysteresis margin: Bright remains until dark+8, Off remains until bright−8;
 Medium leaves below dark−8 or above bright+8. The first sample uses the boundaries
-without that margin. Large lighting changes may take several 2-minute samples.
+without that margin. Large lighting changes may take several samples at your chosen interval.
+After unlock, the old smoothed reading is discarded so the new session responds
+to its first fresh measurement.
 
 ## Camera, privacy and dependencies
 
@@ -100,7 +126,7 @@ command has a timeout (capture: eight seconds; control commands: three seconds).
 An advisory lock prevents concurrent helper samples. A process killed with
 SIGKILL or a power loss cannot run cleanup. No software check can eliminate the
 small race if a video-call app opens the camera between the busy check and capture.
-The camera activity LED may blink every 2 minutes. Sampling consumes some power.
+The camera activity LED may blink on each check. Sampling consumes some power.
 This camera exposes no separate gain control; internal processing may still vary.
 
 ## Troubleshooting and diagnostics
@@ -139,7 +165,7 @@ helper. This implementation is tailored to this camera's controls and formats.
 - `manifest.json`: defaults and schema for the local plugin.
 - `~/.config/omarchy/shell.json`: this plugin's persisted settings:
   `ambientEnabled`, `manualOverride`, `ambientDarkThreshold`,
-  `ambientBrightThreshold`, and the original schedule settings.
+  `ambientBrightThreshold`, `ambientIntervalMinutes`, and the original schedule settings.
 
 No user service or background daemon was installed. The widget owns the timer.
 Updates from this fork preserve the fork feature set. Replacing the installation
@@ -151,11 +177,14 @@ Run the portable unit tests from the repository root:
 
 ```sh
 python -m unittest discover -s tests -v
+node tests/test_session_timing.cjs
 omarchy plugin validate .
 ```
 
 Tests cover the three modes, hysteresis, smoothing, invalid thresholds, busy-camera
-protection, and restoration after a simulated capture failure. Live development
+protection, and restoration after a simulated capture failure. The Node.js timing
+tests exercise the actual QML controller functions for unlock, lock, manual pause,
+unknown lock status, interval limits, and an in-flight capture. Live development
 checks verified camera capture and restoration, all keyboard levels, the rendered
 panel, persistent manual pause, busy-camera schedule fallback, and recovery.
 Cross-room accuracy and other webcam models have not been tested.

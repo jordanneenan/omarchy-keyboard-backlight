@@ -165,6 +165,20 @@ Panel {
           visible: hostWidget && hostWidget.ambientEnabled
           spacing: Style.space(6)
           ScheduleTimeRow {
+            label: "Check interval"
+            displayValue: hostWidget ? String(hostWidget.ambientIntervalMinutes) + "m" : "10m"
+            onDecreaseRequested: if (hostWidget) hostWidget.setIntervalMinutes(hostWidget.ambientIntervalMinutes - 1)
+            onIncreaseRequested: if (hostWidget) hostWidget.setIntervalMinutes(hostWidget.ambientIntervalMinutes + 1)
+          }
+          Text {
+            width: parent.width
+            text: "Checks on unlock; pauses while locked."
+            wrapMode: Text.Wrap
+            color: root.bar.foreground
+            font.family: root.bar.fontFamily
+            font.pixelSize: Style.font.caption
+          }
+          ScheduleTimeRow {
             label: "Dark boundary"
             displayValue: hostWidget ? String(hostWidget.darkThreshold) : "35"
             onDecreaseRequested: if (hostWidget) hostWidget.changeThreshold("dark", -5)

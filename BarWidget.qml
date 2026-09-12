@@ -12,6 +12,43 @@ BarWidget {
   readonly property bool manualOverride: setting("manualOverride", false) === true
   readonly property int darkThreshold: Number(setting("ambientDarkThreshold", 35))
   readonly property int brightThreshold: Number(setting("ambientBrightThreshold", 105))
+  readonly property int ambientIntervalMinutes: {
+    var value = Number(setting("ambientIntervalMinutes", 10))
+    return isFinite(value) ? Math.max(1, Math.min(1440, Math.round(value))) : 10
+  }
+  property bool sessionLocked: true
+  property bool lockStateKnown: false
+  property bool startupReady: false
+  property double lastSampleAt: 0
+
+  function setIntervalMinutes(value) {
+    var minutes = Number(value)
+    if (!isFinite(minutes)) return
+    persistSettings({ ambientIntervalMinutes: Math.max(1, Math.min(1440, Math.round(minutes))) })
+  }
+
+  function checkLockState() {
+    if (!lockProc.running) lockProc.running = true
+  }
+
+  function updateLockState(value) {
+    var known = value === "true" || value === "false"
+    var wasKnown = lockStateKnown
+    var wasLocked = sessionLocked
+    lockStateKnown = known
+    sessionLocked = !known || value === "true"
+    if (sessionLocked) {
+      ambientTimer.stop()
+      if (!wasLocked || wasKnown !== known) resetAmbient()
+      ambientStatus = known ? "Paused while locked" : "Waiting for lock status"
+      return
+    }
+    if (!wasKnown || wasLocked) {
+      resetAmbient() // A new session should not inherit the old room's average.
+      if (startupReady) sampleAmbient()
+    }
+  }
+
   property real ambientAverage: -1
   property real ambientReading: -1
   property string ambientMode: ""
@@ -22,7 +59,12 @@ BarWidget {
   readonly property string ambientHelper: Qt.resolvedUrl("bin/ambient-light").toString().replace(/^file:\/\//, "")
 
   function sampleAmbient() {
-    if (!ambientEnabled || manualOverride || ambientProc.running) return
+    if (!ambientEnabled || manualOverride || !lockStateKnown || sessionLocked) return
+    // A previous bounded capture can still be finishing when unlock arrives.
+    if (ambientProc.running) { sampleRetry.restart(); return }
+    sampleRetry.stop()
+    ambientTimer.restart()
+    lastSampleAt = Date.now()
     var args = [root.ambientHelper, "--dark", String(darkThreshold), "--bright", String(brightThreshold)]
     if (ambientAverage >= 0) args = args.concat(["--previous", String(ambientAverage), "--mode", ambientMode])
     sampleGeneration = ambientGeneration
@@ -152,6 +194,9 @@ BarWidget {
   implicitWidth: button.implicitWidth
   implicitHeight: button.implicitHeight
   onBarChanged: injectPanel()
+  onManualOverrideChanged: if (manualOverride) { ambientTimer.stop(); sampleRetry.stop() }
+  onAmbientEnabledChanged: if (!ambientEnabled) { ambientTimer.stop(); sampleRetry.stop() }
+  onAmbientIntervalMinutesChanged: if (startupReady && ambientEnabled && !manualOverride && lockStateKnown && !sessionLocked) ambientTimer.restart()
   onScheduleEnabledChanged: if (!scheduleEnabled) lastSchedulePeriod = ""
   Component.onCompleted: {
     refresh()
@@ -168,13 +213,22 @@ BarWidget {
 
   Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refresh() }
   Timer { interval: 30000; running: true; repeat: true; onTriggered: root.applySchedule(false) }
-  Timer { id: scheduleDelay; interval: 1000; repeat: false; onTriggered: { root.applySchedule(true); root.sampleAmbient() } }
+  Timer { id: scheduleDelay; interval: 1000; repeat: false; onTriggered: { root.startupReady = true; root.applySchedule(true); root.checkLockState(); root.sampleAmbient() } }
 
-  Timer { interval: 120000; running: root.ambientEnabled && !root.manualOverride; repeat: true; onTriggered: root.sampleAmbient() }
+  Timer { id: ambientTimer; interval: root.ambientIntervalMinutes * 60000; repeat: false; onTriggered: root.sampleAmbient() }
+  Timer { id: sampleRetry; interval: 250; repeat: false; onTriggered: root.sampleAmbient() }
+  // Lock service is private; use its public read-only IPC, without camera access.
+  Timer { interval: 1000; running: root.ambientEnabled; repeat: true; onTriggered: root.checkLockState() }
+  Process {
+    id: lockProc
+    command: ["timeout", "2s", "omarchy-shell", "lock", "isLocked"]
+    stdout: StdioCollector { waitForEnd: true; onStreamFinished: root.updateLockState(text.trim()) }
+  }
 
   IpcHandler {
     target: root.moduleName + ".ambient"
-    function status(): string { return JSON.stringify({ enabled: root.ambientEnabled, paused: root.manualOverride, healthy: root.ambientHealthy, reading: root.ambientReading, average: root.ambientAverage, mode: root.ambientMode, message: root.ambientStatus, level: root.level, sampling: ambientProc.running }) }
+    function status(): string { return JSON.stringify({ enabled: root.ambientEnabled, paused: root.manualOverride, healthy: root.ambientHealthy, reading: root.ambientReading, average: root.ambientAverage, mode: root.ambientMode, message: root.ambientStatus, level: root.level, sampling: ambientProc.running, intervalMinutes: root.ambientIntervalMinutes, locked: root.sessionLocked, lockStateKnown: root.lockStateKnown, lastSampleAt: root.lastSampleAt, timerRunning: ambientTimer.running }) }
+    function interval(minutes: int): void { root.setIntervalMinutes(minutes) }
     function sample(): void { root.sampleAmbient() }
     function open(): void { root.open() }
     function resume(): void { root.resumeAutomatic() }
@@ -186,7 +240,7 @@ BarWidget {
     stdout: StdioCollector {
       waitForEnd: true
       onStreamFinished: {
-        if (root.sampleGeneration !== root.ambientGeneration || !root.ambientEnabled || root.manualOverride) return
+        if (root.sampleGeneration !== root.ambientGeneration || !root.ambientEnabled || root.manualOverride || root.sessionLocked || !root.lockStateKnown) return
         try {
           var result = JSON.parse(text)
           if (!result.ok) throw new Error(result.error || "Camera unavailable")

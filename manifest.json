@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.alexanderpuschkinberlin.keyboard-backlight",
   "name": "ThinkPad Keyboard Backlight (Jordan fork)",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "author": "alexanderpuschkinberlin; jordanneenan (ambient-mode fork)",
   "license": "MIT",
   "description": "Manual, scheduled, and webcam ambient keyboard backlighting.",
@@ -25,7 +25,8 @@
       "ambientEnabled": false,
       "manualOverride": false,
       "ambientDarkThreshold": 35,
-      "ambientBrightThreshold": 105
+      "ambientBrightThreshold": 105,
+      "ambientIntervalMinutes": 10
     },
     "schema": [
       {
@@ -75,6 +76,15 @@
         "max": 255,
         "step": 5,
         "defaultValue": 105
+      },
+      {
+        "key": "ambientIntervalMinutes",
+        "type": "integer",
+        "label": "Ambient check interval (minutes)",
+        "min": 1,
+        "max": 1440,
+        "step": 1,
+        "defaultValue": 10
       }
     ]
   }
