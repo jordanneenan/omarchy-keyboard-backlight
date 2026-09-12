@@ -12,11 +12,11 @@ Panel {
   property bool cursorActive: false
   readonly property var modes: [
     { label: "Off", icon: "󰹐", mode: "off", value: 0 },
-    { label: "Low", icon: "󰌶", mode: "low", value: 1 },
-    { label: "High", icon: "󰛨", mode: "high", value: hostWidget ? hostWidget.maximum : 2 }
+    { label: "Medium", icon: "󰌶", mode: "low", value: 1 },
+    { label: "Bright", icon: "󰛨", mode: "high", value: hostWidget ? hostWidget.maximum : 2 }
   ]
   readonly property int currentLevel: hostWidget ? hostWidget.level : 0
-  readonly property string currentLabel: currentLevel <= 0 ? "Off" : (hostWidget && currentLevel >= hostWidget.maximum ? "High" : "Low")
+  readonly property string currentLabel: currentLevel <= 0 ? "Off" : (hostWidget && currentLevel >= hostWidget.maximum ? "Bright" : "Medium")
 
   function select(delta) { selectedIndex = (selectedIndex + delta + modes.length) % modes.length }
   function activate(index) {
@@ -131,6 +131,55 @@ Panel {
 
         Button {
           width: parent.width
+          text: hostWidget && hostWidget.ambientEnabled ? "Ambient mode enabled" : "Ambient mode disabled"
+          fontSize: Style.font.bodySmall
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          bordered: true
+          active: hostWidget && hostWidget.ambientEnabled
+          onClicked: if (hostWidget) hostWidget.setAmbientEnabled(!hostWidget.ambientEnabled)
+        }
+
+        Text {
+          width: parent.width
+          visible: hostWidget && hostWidget.ambientEnabled
+          text: hostWidget ? (hostWidget.manualOverride ? "Paused by manual selection" : hostWidget.ambientStatus) : ""
+          wrapMode: Text.Wrap
+          color: root.bar.foreground
+          font.family: root.bar.fontFamily
+          font.pixelSize: Style.font.caption
+        }
+
+        Button {
+          width: parent.width
+          visible: hostWidget && hostWidget.manualOverride
+          text: "Resume automatic control"
+          foreground: root.bar.foreground
+          fontFamily: root.bar.fontFamily
+          bordered: true
+          onClicked: if (hostWidget) hostWidget.resumeAutomatic()
+        }
+
+        Column {
+          width: parent.width
+          visible: hostWidget && hostWidget.ambientEnabled
+          spacing: Style.space(6)
+          ScheduleTimeRow {
+            label: "Dark boundary"
+            displayValue: hostWidget ? String(hostWidget.darkThreshold) : "35"
+            onDecreaseRequested: if (hostWidget) hostWidget.changeThreshold("dark", -5)
+            onIncreaseRequested: if (hostWidget) hostWidget.changeThreshold("dark", 5)
+          }
+          ScheduleTimeRow {
+            label: "Bright boundary"
+            displayValue: hostWidget ? String(hostWidget.brightThreshold) : "105"
+            onDecreaseRequested: if (hostWidget) hostWidget.changeThreshold("bright", -5)
+            onIncreaseRequested: if (hostWidget) hostWidget.changeThreshold("bright", 5)
+          }
+        }
+
+        Button {
+          width: parent.width
           iconText: "󰥔"
           text: hostWidget && hostWidget.scheduleEnabled ? "Automatic schedule enabled" : "Automatic schedule disabled"
           fontSize: Style.font.bodySmall
@@ -146,7 +195,7 @@ Panel {
           spacing: Style.space(6)
 
           ScheduleTimeRow {
-            label: "Low light starts"
+            label: "Medium starts"
             hour: hostWidget ? hostWidget.nightStartHour : 20
             onDecreaseRequested: root.changeNightHour(-1)
             onIncreaseRequested: root.changeNightHour(1)
@@ -167,6 +216,7 @@ Panel {
     id: scheduleRow
     property string label: ""
     property int hour: 0
+    property string displayValue: String(hour).padStart(2, "0") + ":00"
     signal decreaseRequested()
     signal increaseRequested()
 
@@ -198,7 +248,7 @@ Panel {
       id: timeLabel
       width: Style.space(58)
       anchors.verticalCenter: parent.verticalCenter
-      text: String(scheduleRow.hour).padStart(2, "0") + ":00"
+      text: scheduleRow.displayValue
       color: root.bar.foreground
       font.family: root.bar.fontFamily
       font.pixelSize: Style.font.body

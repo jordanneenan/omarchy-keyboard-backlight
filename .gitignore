@@ -1,3 +1,6 @@
 *.log
 *~
 assets/panel.png
+
+__pycache__/
+*.py[cod]

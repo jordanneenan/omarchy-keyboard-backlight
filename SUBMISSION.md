@@ -1,37 +1,10 @@
-# Marketplace submission draft
+# Fork status
 
-## Issue title
+This is jordanneenan's personal fork of the ThinkPad Keyboard Backlight widget.
+It keeps the upstream plugin ID for existing-installation compatibility and has
+not been submitted as a separate marketplace listing.
 
-`[Plugin]: ThinkPad Keyboard Backlight`
+Feature proposal: https://github.com/alexanderpuschkinberlin/omarchy-keyboard-backlight/issues/1
 
-## Issue body
-
-### Repository URL
-
-https://github.com/alexanderpuschkinberlin/omarchy-keyboard-backlight
-
-### Category
-
-Hardware
-
-### Tags
-
-bar, power-management, quickshell
-
-### Suggest a missing tag
-
-keyboard
-
-### Maintainer notes
-
-Built for ThinkPads without an automatic keyboard-light sensor mode and tested on a Lenovo ThinkPad X13 Yoga Gen 1 with the `tpacpi::kbd_backlight` LED device. The plugin discovers compatible `*kbd_backlight*` devices dynamically and requires no privileged access.
-
-### Submission checklist
-
-- [x] The repository is public and contains installation and removal instructions.
-- [x] I have documented the plugin license and any external dependencies.
-- [ ] I confirm that I own or have permission to submit this plugin and its preview assets.
-- [x] The plugin does not overwrite user configuration without explicit consent.
-- [x] I understand that approval is for listing and is not a security review.
-
-The ownership checkbox is intentionally left unchecked until the repository owner confirms it before submission.
+A future upstream PR should make camera selection and exposure handling portable,
+review existing schedule-only behavior, and agree on scope with the maintainer.

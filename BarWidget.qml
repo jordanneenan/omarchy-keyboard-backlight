@@ -8,6 +8,57 @@ BarWidget {
   id: root
   moduleName: "io.github.alexanderpuschkinberlin.keyboard-backlight"
 
+  readonly property bool ambientEnabled: setting("ambientEnabled", false) === true
+  readonly property bool manualOverride: setting("manualOverride", false) === true
+  readonly property int darkThreshold: Number(setting("ambientDarkThreshold", 35))
+  readonly property int brightThreshold: Number(setting("ambientBrightThreshold", 105))
+  property real ambientAverage: -1
+  property real ambientReading: -1
+  property string ambientMode: ""
+  property string ambientStatus: "Waiting for sample"
+  property bool ambientHealthy: false
+  property int ambientGeneration: 0
+  property int sampleGeneration: -1
+  readonly property string ambientHelper: Qt.resolvedUrl("bin/ambient-light").toString().replace(/^file:\/\//, "")
+
+  function sampleAmbient() {
+    if (!ambientEnabled || manualOverride || ambientProc.running) return
+    var args = [root.ambientHelper, "--dark", String(darkThreshold), "--bright", String(brightThreshold)]
+    if (ambientAverage >= 0) args = args.concat(["--previous", String(ambientAverage), "--mode", ambientMode])
+    sampleGeneration = ambientGeneration
+    ambientProc.command = args
+    ambientProc.running = true
+  }
+
+  function resetAmbient() {
+    ambientGeneration++
+    ambientAverage = -1
+    ambientMode = ""
+    ambientHealthy = false
+  }
+
+  function setAmbientEnabled(value) {
+    resetAmbient()
+    persistSettings({ ambientEnabled: value, manualOverride: false })
+    lastSchedulePeriod = ""
+    Qt.callLater(function() { if (value) root.sampleAmbient(); else root.applySchedule(true) })
+  }
+
+  function resumeAutomatic() {
+    resetAmbient()
+    persistSettings({ manualOverride: false })
+    Qt.callLater(function() { if (root.ambientEnabled) root.sampleAmbient(); else root.applySchedule(true) })
+  }
+
+  function changeThreshold(which, delta) {
+    var update = {}
+    if (which === "dark") update.ambientDarkThreshold = Math.max(0, Math.min(brightThreshold - 20, darkThreshold + delta))
+    else update.ambientBrightThreshold = Math.max(darkThreshold + 20, Math.min(255, brightThreshold + delta))
+    persistSettings(update)
+    resetAmbient()
+    Qt.callLater(root.sampleAmbient)
+  }
+
   property int level: 0
   property int maximum: 2
   property string deviceName: ""
@@ -23,7 +74,11 @@ BarWidget {
     if (!statusProc.running) statusProc.running = true
   }
 
-  function setMode(mode) {
+  function setMode(mode, automatic) {
+    if (!automatic) {
+      persistSettings({ manualOverride: true })
+      resetAmbient()
+    }
     if (actionProc.running) return
     actionProc.command = [root.helper, "set", mode]
     actionProc.running = true
@@ -45,6 +100,7 @@ BarWidget {
   }
 
   function applySchedule(force) {
+    if (manualOverride || (ambientEnabled && ambientHealthy)) return
     if (!scheduleEnabled) {
       lastSchedulePeriod = ""
       return
@@ -52,7 +108,7 @@ BarWidget {
     var period = schedulePeriod()
     if (!force && period === lastSchedulePeriod) return
     lastSchedulePeriod = period
-    setMode(period === "night" ? "low" : "off")
+    setMode(period === "night" ? "low" : "off", true)
   }
 
   function persistSettings(values) {
@@ -65,7 +121,7 @@ BarWidget {
   }
 
   function setScheduleEnabled(value) {
-    persistSettings({ scheduleEnabled: value })
+    persistSettings({ scheduleEnabled: value, manualOverride: false })
     lastSchedulePeriod = ""
     if (value) Qt.callLater(function() { root.applySchedule(true) })
   }
@@ -112,7 +168,42 @@ BarWidget {
 
   Timer { interval: 5000; running: true; repeat: true; onTriggered: root.refresh() }
   Timer { interval: 30000; running: true; repeat: true; onTriggered: root.applySchedule(false) }
-  Timer { id: scheduleDelay; interval: 1000; repeat: false; onTriggered: root.applySchedule(true) }
+  Timer { id: scheduleDelay; interval: 1000; repeat: false; onTriggered: { root.applySchedule(true); root.sampleAmbient() } }
+
+  Timer { interval: 45000; running: root.ambientEnabled && !root.manualOverride; repeat: true; onTriggered: root.sampleAmbient() }
+
+  IpcHandler {
+    target: root.moduleName + ".ambient"
+    function status(): string { return JSON.stringify({ enabled: root.ambientEnabled, paused: root.manualOverride, healthy: root.ambientHealthy, reading: root.ambientReading, average: root.ambientAverage, mode: root.ambientMode, message: root.ambientStatus, level: root.level, sampling: ambientProc.running }) }
+    function sample(): void { root.sampleAmbient() }
+    function open(): void { root.open() }
+    function resume(): void { root.resumeAutomatic() }
+    function manual(mode: string): void { if (["off", "low", "high"].indexOf(mode) >= 0) root.setMode(mode) }
+  }
+
+  Process {
+    id: ambientProc
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        if (root.sampleGeneration !== root.ambientGeneration || !root.ambientEnabled || root.manualOverride) return
+        try {
+          var result = JSON.parse(text)
+          if (!result.ok) throw new Error(result.error || "Camera unavailable")
+          root.ambientHealthy = true
+          root.ambientReading = result.reading
+          root.ambientAverage = result.average
+          root.ambientMode = result.mode
+          root.ambientStatus = "Light: " + Math.round(result.reading) + " / 255 · smoothed: " + Math.round(result.average)
+          root.setMode(result.mode, true)
+        } catch (error) {
+          root.resetAmbient()
+          root.ambientStatus = String(error).replace(/^Error: /, "")
+          root.applySchedule(true)
+        }
+      }
+    }
+  }
 
   Process {
     id: statusProc

@@ -1,25 +1,31 @@
 {
   "schemaVersion": 1,
   "id": "io.github.alexanderpuschkinberlin.keyboard-backlight",
-  "name": "ThinkPad Keyboard Backlight",
-  "version": "1.0.0",
-  "author": "alexanderpuschkinberlin",
+  "name": "ThinkPad Keyboard Backlight (Jordan fork)",
+  "version": "1.1.0",
+  "author": "alexanderpuschkinberlin; jordanneenan (ambient-mode fork)",
   "license": "MIT",
-  "description": "Manual and scheduled keyboard lighting for ThinkPads without an automatic backlight sensor.",
-  "kinds": ["bar-widget"],
+  "description": "Manual, scheduled, and webcam ambient keyboard backlighting.",
+  "kinds": [
+    "bar-widget"
+  ],
   "entryPoints": {
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
     "displayName": "ThinkPad Keyboard Backlight",
-    "description": "Select off, low, or high and automate keyboard lighting on ThinkPads without an ambient-light mode.",
+    "description": "Off, medium, or bright with optional local webcam light sensing.",
     "category": "System",
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
       "scheduleEnabled": false,
       "nightStartHour": 20,
-      "dayStartHour": 7
+      "dayStartHour": 7,
+      "ambientEnabled": false,
+      "manualOverride": false,
+      "ambientDarkThreshold": 35,
+      "ambientBrightThreshold": 105
     },
     "schema": [
       {
@@ -45,6 +51,30 @@
         "max": 23,
         "step": 1,
         "defaultValue": 7
+      },
+      {
+        "key": "ambientEnabled",
+        "type": "boolean",
+        "label": "Webcam ambient mode",
+        "defaultValue": false
+      },
+      {
+        "key": "ambientDarkThreshold",
+        "type": "integer",
+        "label": "Dark boundary (0\u2013255)",
+        "min": 0,
+        "max": 235,
+        "step": 5,
+        "defaultValue": 35
+      },
+      {
+        "key": "ambientBrightThreshold",
+        "type": "integer",
+        "label": "Bright boundary (0\u2013255)",
+        "min": 20,
+        "max": 255,
+        "step": 5,
+        "defaultValue": 105
       }
     ]
   }
