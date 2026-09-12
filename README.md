@@ -42,7 +42,7 @@ Either manual action pauses both automatic systems; **Resume automatic control**
 resumes them. The pause survives shell reloads and login. The hardware Fn shortcut
 is outside this widget: an automatic sample can overwrite an Fn-selected level.
 
-**Ambient mode** uses the visible-light webcam every 45 seconds. A dark scene
+**Ambient mode** uses the visible-light webcam every 2 minutes. A dark scene
 selects Bright, an intermediate scene Medium, and a bright scene Off. The panel
 shows the latest intensity and smoothed intensity. Camera activity lasts roughly
 one second per successful sample, rather than keeping the camera open.
@@ -78,7 +78,7 @@ still influence readings. A covered lens looks dark and may select Bright.
 The smoothed value is 65% previous + 35% current. Switching uses an eight-unit
 hysteresis margin: Bright remains until dark+8, Off remains until bright−8;
 Medium leaves below dark−8 or above bright+8. The first sample uses the boundaries
-without that margin. Large lighting changes may take several 45-second samples.
+without that margin. Large lighting changes may take several 2-minute samples.
 
 ## Camera, privacy and dependencies
 
@@ -100,7 +100,7 @@ command has a timeout (capture: eight seconds; control commands: three seconds).
 An advisory lock prevents concurrent helper samples. A process killed with
 SIGKILL or a power loss cannot run cleanup. No software check can eliminate the
 small race if a video-call app opens the camera between the busy check and capture.
-The camera activity LED may blink every 45 seconds. Sampling consumes some power.
+The camera activity LED may blink every 2 minutes. Sampling consumes some power.
 This camera exposes no separate gain control; internal processing may still vary.
 
 ## Troubleshooting and diagnostics

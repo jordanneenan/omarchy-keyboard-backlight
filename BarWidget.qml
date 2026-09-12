@@ -170,7 +170,7 @@ BarWidget {
   Timer { interval: 30000; running: true; repeat: true; onTriggered: root.applySchedule(false) }
   Timer { id: scheduleDelay; interval: 1000; repeat: false; onTriggered: { root.applySchedule(true); root.sampleAmbient() } }
 
-  Timer { interval: 45000; running: root.ambientEnabled && !root.manualOverride; repeat: true; onTriggered: root.sampleAmbient() }
+  Timer { interval: 120000; running: root.ambientEnabled && !root.manualOverride; repeat: true; onTriggered: root.sampleAmbient() }
 
   IpcHandler {
     target: root.moduleName + ".ambient"
